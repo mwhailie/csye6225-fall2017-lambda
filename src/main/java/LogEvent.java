@@ -5,6 +5,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.PutItemOutcome;
+import com.amazonaws.services.dynamodbv2.document.spec.GetItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
 import com.amazonaws.services.lambda.runtime.Context;
@@ -54,14 +55,15 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
       context.getLogger().log("Request number is: " + (request.getRecords().size()));
 
       context.getLogger().log("Request by: " + request.getRecords().get(0).getSNS().getMessage());
+      context.getLogger().log("Request ID: " + request.getRecords().get(0).getSNS().getMessageId());
       this.initDynamoDbClient();
       context.getLogger().log("dynamoDb: " + dynamoDb.toString());
       String id = request.getRecords().get(0).getSNS().getMessage();
       String tolken  = request.getRecords().get(0).getSNS().getMessageId();
-      if(checkData(id)){
+//      if(checkData(id)){
         persistData(id, tolken);
-        resetPost(id, tolken);
-      }
+        resetPost(id, tolken,context);
+//      }
 
       timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss").format(Calendar.getInstance().getTime());
       context.getLogger().log("Invocation completed: " + timeStamp);
@@ -81,11 +83,11 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
                           .withString("value", tolken)));
     }
 
-  private boolean checkData(String id) throws ConditionalCheckFailedException
-  {
-    return this.dynamoDb.getTable(DYNAMODB_TABLE_NAME).getItem().withString("id",id) == null;
-  }
- 
+//  private boolean checkData(String id) throws ConditionalCheckFailedException
+//  {
+//    return this.dynamoDb.getTable(DYNAMODB_TABLE_NAME).getItem(new GetItemSpec().withAttributesToGet("id")) == null;
+//  }
+//
   private void initDynamoDbClient() {
     AmazonDynamoDBClient client = new AmazonDynamoDBClient();
     client.setRegion(Region.getRegion(REGION));
@@ -94,7 +96,7 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
 
 //  @RequestMapping(value = "/user/resetPassword", method = RequestMethod.POST, produces = "application/json")
 //  @ResponseBody
-  public String resetPost(String id, String tolken) {
+  public String resetPost(String id, String tolken, Context context) {
 //    JsonObject jsonObject = new JsonObject();
 //    Gson gson = new Gson();
 //    User user = gson.fromJson(sUser, User.class);
@@ -123,7 +125,7 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
 //    }
 
     //send email with reset url
-    final String FROM = "reset_password@csye6225-fall2017-jingyu.me";
+    final String FROM = "reset_password@csye6225-fall2017-mawenhe.me";
 //    final String TO = "jing.yu@husky.neu.edu";
     final String TO = id;
 //    final String CONFIGSET = "set1";
@@ -154,8 +156,10 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
       // configuration set
 //              .withConfigurationSetName(CONFIGSET);
       client.sendEmail(request);
+      context.getLogger().log("status: " + "Email sent!");
 //      jsonObject.addProperty("status", "Email sent!");
     } catch (Exception ex) {
+      context.getLogger().log("status: " + "Email sent failure!" + ex.getMessage());
 //      jsonObject.addProperty("status", "Email sent failure!"
 //              + ex.getMessage());
     }
