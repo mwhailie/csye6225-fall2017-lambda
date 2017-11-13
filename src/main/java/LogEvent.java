@@ -2,8 +2,10 @@
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.KeyAttribute;
 import com.amazonaws.services.dynamodbv2.document.PutItemOutcome;
 import com.amazonaws.services.dynamodbv2.document.spec.GetItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
@@ -45,7 +47,8 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
     private DynamoDB dynamoDb;
     private String DYNAMODB_TABLE_NAME = "csye6225-template";
     private Regions REGION = Regions.US_EAST_1;
-    
+    private DynamoDBMapper mapper;
+
     public Object handleResetRequest(SNSEvent request, Context context) {
 
       String timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss").format(Calendar.getInstance().getTime());
@@ -60,9 +63,12 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
       context.getLogger().log("dynamoDb: " + dynamoDb.toString());
       String id = request.getRecords().get(0).getSNS().getMessage();
       String tolken  = request.getRecords().get(0).getSNS().getMessageId();
-//      if(checkData(id)){
+//      if(checkData(id, context)){
         persistData(id, tolken);
+        context.getLogger().log("Insert tolken to dynamoDB");
         resetPost(id, tolken,context);
+//      }else{
+//        context.getLogger().log("Already request in 20 mins");
 //      }
 
       timeStamp = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss").format(Calendar.getInstance().getTime());
@@ -83,15 +89,19 @@ public class LogEvent implements RequestHandler<SNSEvent, Object> {
                           .withString("value", tolken)));
     }
 
-//  private boolean checkData(String id) throws ConditionalCheckFailedException
+//  private boolean checkData(String id, Context context) throws ConditionalCheckFailedException
 //  {
-//    return this.dynamoDb.getTable(DYNAMODB_TABLE_NAME).getItem(new GetItemSpec().withAttributesToGet("id")) == null;
-//  }
+//    Item item = this.dynamoDb.getTable(DYNAMODB_TABLE_NAME).getItem("id", id);
+//    context.getLogger().log("Inv: " + item.getString("id"));
+//    return item.isNull("id");
 //
+//  }
+
   private void initDynamoDbClient() {
     AmazonDynamoDBClient client = new AmazonDynamoDBClient();
     client.setRegion(Region.getRegion(REGION));
     this.dynamoDb = new DynamoDB(client);
+    this.mapper = new DynamoDBMapper(client);
   }
 
 //  @RequestMapping(value = "/user/resetPassword", method = RequestMethod.POST, produces = "application/json")
